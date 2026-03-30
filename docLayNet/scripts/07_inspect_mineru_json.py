@@ -1,183 +1,649 @@
+# # from __future__ import annotations
+
+# # import json
+# # from collections import Counter
+# # from pathlib import Path
+# # from typing import Any
+
+
+# # ROOT = Path(__file__).resolve().parents[1]
+# # RAW_DIR = ROOT / "outputs" / "mineru_raw"
+
+
+# # def find_primary_jsons(raw_dir: Path) -> list[Path]:
+# #     """
+# #     只找每個樣本資料夾底下，和資料夾同名的 json。
+# #     例如：
+# #       outputs/mineru_raw/1/1.json
+# #       outputs/mineru_raw/2/2.json
+# #     """
+# #     json_paths: list[Path] = []
+
+# #     for sample_dir in sorted(raw_dir.iterdir(), key=lambda p: p.name):
+# #         if not sample_dir.is_dir():
+# #             continue
+
+# #         target_json = sample_dir / f"{sample_dir.name}.json"
+# #         if target_json.exists():
+# #             json_paths.append(target_json)
+
+# #     return json_paths
+
+
+# # def extract_para_blocks(data: Any) -> list[dict[str, Any]]:
+# #     """
+# #     第三份 MinerU JSON:
+# #     {
+# #       "pdf_info": [
+# #         {
+# #           "page_idx": 0,
+# #           "page_size": [...],
+# #           "para_blocks": [...]
+# #         },
+# #         ...
+# #       ]
+# #     }
+# #     """
+# #     if not isinstance(data, dict):
+# #         return []
+
+# #     pdf_info = data.get("pdf_info")
+# #     if not isinstance(pdf_info, list):
+# #         return []
+
+# #     blocks: list[dict[str, Any]] = []
+
+# #     for page in pdf_info:
+# #         if not isinstance(page, dict):
+# #             continue
+
+# #         page_idx = page.get("page_idx")
+# #         para_blocks = page.get("para_blocks", [])
+# #         if not isinstance(para_blocks, list):
+# #             continue
+
+# #         for block in para_blocks:
+# #             if not isinstance(block, dict):
+# #                 continue
+
+# #             b = dict(block)
+# #             if "page_idx" not in b:
+# #                 b["page_idx"] = page_idx
+# #             blocks.append(b)
+
+# #     return blocks
+
+
+# # def extract_text_from_block(block: dict[str, Any]) -> str:
+# #     parts: list[str] = []
+
+# #     for line in block.get("lines", []):
+# #         if not isinstance(line, dict):
+# #             continue
+# #         for span in line.get("spans", []):
+# #             if not isinstance(span, dict):
+# #                 continue
+# #             content = span.get("content")
+# #             if isinstance(content, str):
+# #                 parts.append(content)
+
+# #     return "".join(parts).strip()
+
+
+# # def extract_image_paths_from_block(block: dict[str, Any]) -> list[str]:
+# #     paths: list[str] = []
+
+# #     for sub_block in block.get("blocks", []):
+# #         if not isinstance(sub_block, dict):
+# #             continue
+# #         for line in sub_block.get("lines", []):
+# #             if not isinstance(line, dict):
+# #                 continue
+# #             for span in line.get("spans", []):
+# #                 if not isinstance(span, dict):
+# #                     continue
+# #                 image_path = span.get("image_path")
+# #                 if isinstance(image_path, str):
+# #                     paths.append(image_path)
+
+# #     return paths
+
+
+# # def preview_block(block: dict[str, Any]) -> dict[str, Any]:
+# #     out: dict[str, Any] = {
+# #         "type": block.get("type"),
+# #         "bbox": block.get("bbox"),
+# #         "page_idx": block.get("page_idx"),
+# #         "keys": list(block.keys()),
+# #     }
+
+# #     text = extract_text_from_block(block)
+# #     if text:
+# #         out["text_preview"] = text[:120]
+
+# #     image_paths = extract_image_paths_from_block(block)
+# #     if image_paths:
+# #         out["image_paths"] = image_paths[:3]
+
+# #     return out
+
+
+# # def inspect_one_json(json_path: Path) -> dict[str, Any]:
+# #     data = json.loads(json_path.read_text(encoding="utf-8"))
+
+# #     pdf_info = data.get("pdf_info", [])
+# #     num_pages = len(pdf_info) if isinstance(pdf_info, list) else 0
+
+# #     blocks = extract_para_blocks(data)
+# #     type_counter = Counter()
+
+# #     for block in blocks:
+# #         block_type = block.get("type", "<missing>")
+# #         type_counter[str(block_type)] += 1
+
+# #     previews = [preview_block(b) for b in blocks[:5]]
+
+# #     return {
+# #         "json_path": str(json_path),
+# #         "num_pages": num_pages,
+# #         "num_blocks": len(blocks),
+# #         "type_counter": dict(type_counter),
+# #         "previews": previews,
+# #     }
+
+
+# # def main() -> None:
+# #     json_files = find_primary_jsons(RAW_DIR)
+
+# #     if not json_files:
+# #         print(f"[WARN] no primary json found under: {RAW_DIR}")
+# #         return
+
+# #     print("=" * 100)
+# #     print("[TARGET JSON FILES]")
+# #     for p in json_files:
+# #         print(p)
+
+# #     total_files = 0
+# #     total_pages = 0
+# #     total_blocks = 0
+# #     global_type_counter = Counter()
+
+# #     all_results: list[dict[str, Any]] = []
+
+# #     for json_path in json_files:
+# #         print("\n" + "=" * 100)
+# #         print(f"[FILE] {json_path}")
+
+# #         result = inspect_one_json(json_path)
+# #         all_results.append(result)
+
+# #         total_files += 1
+# #         total_pages += result["num_pages"]
+# #         total_blocks += result["num_blocks"]
+# #         global_type_counter.update(result["type_counter"])
+
+# #         print(f"pages      : {result['num_pages']}")
+# #         print(f"blocks     : {result['num_blocks']}")
+# #         print(f"type_count : {result['type_counter']}")
+
+# #         print("[PREVIEW BLOCKS]")
+# #         for i, item in enumerate(result["previews"], start=1):
+# #             print(f"  ({i}) {json.dumps(item, ensure_ascii=False)}")
+
+# #     print("\n" + "=" * 100)
+# #     print("[SUMMARY]")
+# #     print(f"total_files  : {total_files}")
+# #     print(f"total_pages  : {total_pages}")
+# #     print(f"total_blocks : {total_blocks}")
+# #     print(f"global_types : {dict(global_type_counter)}")
+
+
+# # if __name__ == "__main__":
+# #     main()
+
+# #=========================================================
+
+# from __future__ import annotations
+
+# import json
+# from collections import Counter
+# from pathlib import Path
+# from typing import Any
+
+
+# ROOT = Path(__file__).resolve().parents[1]
+# RAW_DIR = ROOT / "outputs" / "mineru_raw"
+
+
+# def sort_key_for_path_name(p: Path) -> tuple[int, Any]:
+#     """
+#     讓資料夾名稱像 1,2,3 可以按數字排序；
+#     若不是純數字，就退回字串排序。
+#     """
+#     try:
+#         return (0, int(p.name))
+#     except ValueError:
+#         return (1, p.name)
+
+
+# def find_primary_jsons(raw_dir: Path) -> list[Path]:
+#     """
+#     只找每個樣本資料夾底下，和資料夾同名的 json。
+#     例如：
+#       outputs/mineru_raw/1/1.json
+#       outputs/mineru_raw/2/2.json
+#     """
+#     json_paths: list[Path] = []
+
+#     if not raw_dir.exists():
+#         return []
+
+#     for sample_dir in sorted(raw_dir.iterdir(), key=sort_key_for_path_name):
+#         if not sample_dir.is_dir():
+#             continue
+
+#         target_json = sample_dir / f"{sample_dir.name}.json"
+#         if target_json.exists():
+#             json_paths.append(target_json)
+
+#     return json_paths
+
+
+# def extract_blocks(data: Any) -> list[dict[str, Any]]:
+#     """
+#     新版 MinerU JSON 結構：
+#     [
+#       {
+#         "type": "text" | "table" | "page_number" | ...,
+#         "bbox": [x1, y1, x2, y2],
+#         "page_idx": 0,
+#         ...
+#       },
+#       ...
+#     ]
+#     """
+#     if not isinstance(data, list):
+#         return []
+
+#     out: list[dict[str, Any]] = []
+#     for item in data:
+#         if isinstance(item, dict):
+#             out.append(item)
+#     return out
+
+
+# def extract_text_from_block(block: dict[str, Any]) -> str:
+#     """
+#     依照不同 block 類型抓代表內容。
+#     """
+#     block_type = block.get("type")
+
+#     if block_type == "text":
+#         text = block.get("text")
+#         return text.strip() if isinstance(text, str) else ""
+
+#     if block_type == "table":
+#         table_body = block.get("table_body")
+#         return table_body.strip() if isinstance(table_body, str) else ""
+
+#     # 其他未知類型，盡量 fallback 抓 text
+#     text = block.get("text")
+#     if isinstance(text, str):
+#         return text.strip()
+
+#     return ""
+
+
+# def extract_image_paths_from_block(block: dict[str, Any]) -> list[str]:
+#     """
+#     新 schema 下，table 直接有 img_path。
+#     """
+#     paths: list[str] = []
+
+#     img_path = block.get("img_path")
+#     if isinstance(img_path, str) and img_path.strip():
+#         paths.append(img_path.strip())
+
+#     return paths
+
+
+# def preview_block(block: dict[str, Any]) -> dict[str, Any]:
+#     out: dict[str, Any] = {
+#         "type": block.get("type"),
+#         "bbox": block.get("bbox"),
+#         "page_idx": block.get("page_idx"),
+#         "keys": list(block.keys()),
+#     }
+
+#     if "text_level" in block:
+#         out["text_level"] = block.get("text_level")
+
+#     text = extract_text_from_block(block)
+#     if text:
+#         out["content_preview"] = text[:180]
+
+#     image_paths = extract_image_paths_from_block(block)
+#     if image_paths:
+#         out["image_paths"] = image_paths[:3]
+
+#     if block.get("type") == "table":
+#         table_caption = block.get("table_caption")
+#         table_footnote = block.get("table_footnote")
+#         if isinstance(table_caption, list):
+#             out["table_caption_count"] = len(table_caption)
+#         if isinstance(table_footnote, list):
+#             out["table_footnote_count"] = len(table_footnote)
+
+#     return out
+
+
+# def inspect_one_json(json_path: Path) -> dict[str, Any]:
+#     data = json.loads(json_path.read_text(encoding="utf-8"))
+
+#     blocks = extract_blocks(data)
+
+#     type_counter = Counter()
+#     page_counter = Counter()
+
+#     for block in blocks:
+#         block_type = str(block.get("type", "<missing>"))
+#         type_counter[block_type] += 1
+
+#         page_idx = block.get("page_idx")
+#         if isinstance(page_idx, int):
+#             page_counter[page_idx] += 1
+
+#     num_pages = len(page_counter)
+#     previews = [preview_block(b) for b in blocks[:8]]
+
+#     table_blocks = [b for b in blocks if b.get("type") == "table"]
+#     table_previews = [preview_block(b) for b in table_blocks[:3]]
+
+#     return {
+#         "json_path": str(json_path),
+#         "root_type": type(data).__name__,
+#         "num_pages": num_pages,
+#         "num_blocks": len(blocks),
+#         "type_counter": dict(type_counter),
+#         "page_counter": dict(page_counter),
+#         "previews": previews,
+#         "table_previews": table_previews,
+#     }
+
+
+# def main() -> None:
+#     json_files = find_primary_jsons(RAW_DIR)
+
+#     if not json_files:
+#         print(f"[WARN] no primary json found under: {RAW_DIR}")
+#         return
+
+#     print("=" * 100)
+#     print("[TARGET JSON FILES]")
+#     for p in json_files:
+#         print(p)
+
+#     total_files = 0
+#     total_pages = 0
+#     total_blocks = 0
+#     global_type_counter = Counter()
+
+#     for json_path in json_files:
+#         print("\n" + "=" * 100)
+#         print(f"[FILE] {json_path}")
+
+#         result = inspect_one_json(json_path)
+
+#         total_files += 1
+#         total_pages += result["num_pages"]
+#         total_blocks += result["num_blocks"]
+#         global_type_counter.update(result["type_counter"])
+
+#         print(f"root_type   : {result['root_type']}")
+#         print(f"pages       : {result['num_pages']}")
+#         print(f"blocks      : {result['num_blocks']}")
+#         print(f"type_count  : {result['type_counter']}")
+#         print(f"page_count  : {result['page_counter']}")
+
+#         print("[PREVIEW BLOCKS]")
+#         for i, item in enumerate(result["previews"], start=1):
+#             print(f"  ({i}) {json.dumps(item, ensure_ascii=False)}")
+
+#         if result["table_previews"]:
+#             print("[TABLE PREVIEWS]")
+#             for i, item in enumerate(result["table_previews"], start=1):
+#                 print(f"  ({i}) {json.dumps(item, ensure_ascii=False)}")
+
+#     print("\n" + "=" * 100)
+#     print("[SUMMARY]")
+#     print(f"total_files   : {total_files}")
+#     print(f"total_pages   : {total_pages}")
+#     print(f"total_blocks  : {total_blocks}")
+#     print(f"global_types  : {dict(global_type_counter)}")
+
+
+# if __name__ == "__main__":
+#     main()
+
+# =================================================
 from __future__ import annotations
 
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[1]   # .../ocr/docLayNet
+ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "outputs" / "mineru_raw"
 
 
-def unwrap_blocks(data: Any) -> list[dict[str, Any]]:
+def sort_key_for_path_name(p: Path) -> tuple[int, Any]:
     """
-    MinerU 可能是：
-    1. root = [ {...}, {...} ]
-    2. root = [ [ {...}, {...} ] ]
+    讓資料夾名稱像 1,2,3 可以按數字排序；
+    若不是純數字，就退回字串排序。
+    """
+    try:
+        return (0, int(p.name))
+    except ValueError:
+        return (1, p.name)
+
+
+def find_primary_jsons(raw_dir: Path) -> list[Path]:
+    """
+    只找每個樣本資料夾底下，和資料夾同名的 json。
+    例如：
+      outputs/mineru_raw/1/1.json
+      outputs/mineru_raw/2/2.json
+    """
+    json_paths: list[Path] = []
+
+    if not raw_dir.exists():
+        return []
+
+    for sample_dir in sorted(raw_dir.iterdir(), key=sort_key_for_path_name):
+        if not sample_dir.is_dir():
+            continue
+
+        target_json = sample_dir / f"{sample_dir.name}.json"
+        if target_json.exists():
+            json_paths.append(target_json)
+
+    return json_paths
+
+
+def extract_blocks(data: Any) -> list[dict[str, Any]]:
+    """
+    新版 MinerU JSON 結構：
+    [
+      {
+        "type": "text" | "table" | "page_number" | ...,
+        "bbox": [x1, y1, x2, y2],
+        "page_idx": 0,
+        ...
+      },
+      ...
+    ]
     """
     if not isinstance(data, list):
         return []
 
-    if all(isinstance(x, dict) for x in data):
-        return data
-
-    if len(data) == 1 and isinstance(data[0], list):
-        inner = data[0]
-        if all(isinstance(x, dict) for x in inner):
-            return inner
-
-    blocks: list[dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for item in data:
         if isinstance(item, dict):
-            blocks.append(item)
-        elif isinstance(item, list):
-            for sub in item:
-                if isinstance(sub, dict):
-                    blocks.append(sub)
-    return blocks
+            out.append(item)
+    return out
 
 
-def is_valid_bbox(bbox: Any) -> bool:
-    if not isinstance(bbox, list) or len(bbox) != 4:
-        return False
-    return all(isinstance(v, (int, float)) for v in bbox)
-
-
-def detect_bbox_mode(blocks: list[dict[str, Any]]) -> str:
+def extract_text_from_block(block: dict[str, Any]) -> str:
     """
-    粗略判斷這份 json 的 bbox 是：
-    - normalized (0~1)
-    - pixel
-    - unknown
+    依照不同 block 類型抓代表內容。
     """
-    max_coord = 0.0
-    found = False
+    block_type = block.get("type")
 
-    for block in blocks:
-        bbox = block.get("bbox")
-        if not is_valid_bbox(bbox):
-            continue
-        found = True
-        max_coord = max(max_coord, *[float(v) for v in bbox])
+    if block_type == "text":
+        text = block.get("text")
+        return text.strip() if isinstance(text, str) else ""
 
-    if not found:
-        return "unknown"
-    if max_coord <= 1.5:
-        return "normalized"
-    return "pixel"
+    if block_type == "table":
+        table_body = block.get("table_body")
+        return table_body.strip() if isinstance(table_body, str) else ""
+
+    # 其他未知類型，盡量 fallback 抓 text
+    text = block.get("text")
+    if isinstance(text, str):
+        return text.strip()
+
+    return ""
+
+
+def extract_image_paths_from_block(block: dict[str, Any]) -> list[str]:
+    """
+    新 schema 下，table 直接有 img_path。
+    """
+    paths: list[str] = []
+
+    img_path = block.get("img_path")
+    if isinstance(img_path, str) and img_path.strip():
+        paths.append(img_path.strip())
+
+    return paths
 
 
 def preview_block(block: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
+    out: dict[str, Any] = {
+        "type": block.get("type"),
+        "bbox": block.get("bbox"),
+        "page_idx": block.get("page_idx"),
+        "keys": list(block.keys()),
+    }
 
-    for k, v in block.items():
-        if isinstance(v, (str, int, float, bool)) or v is None:
-            text = v
-            if isinstance(text, str) and len(text) > 150:
-                text = text[:150] + "..."
-            out[k] = text
-        elif isinstance(v, list):
-            out[k] = f"<list len={len(v)}>"
-        elif isinstance(v, dict):
-            out[k] = f"<dict keys={list(v.keys())[:10]}>"
-        else:
-            out[k] = f"<{type(v).__name__}>"
+    if "text_level" in block:
+        out["text_level"] = block.get("text_level")
+
+    text = extract_text_from_block(block)
+    if text:
+        out["content_preview"] = text[:180]
+
+    image_paths = extract_image_paths_from_block(block)
+    if image_paths:
+        out["image_paths"] = image_paths[:3]
+
+    if block.get("type") == "table":
+        table_caption = block.get("table_caption")
+        table_footnote = block.get("table_footnote")
+        if isinstance(table_caption, list):
+            out["table_caption_count"] = len(table_caption)
+        if isinstance(table_footnote, list):
+            out["table_footnote_count"] = len(table_footnote)
 
     return out
 
 
+def inspect_one_json(json_path: Path) -> dict[str, Any]:
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+
+    blocks = extract_blocks(data)
+
+    type_counter = Counter()
+    page_counter = Counter()
+
+    for block in blocks:
+        block_type = str(block.get("type", "<missing>"))
+        type_counter[block_type] += 1
+
+        page_idx = block.get("page_idx")
+        if isinstance(page_idx, int):
+            page_counter[page_idx] += 1
+
+    num_pages = len(page_counter)
+    previews = [preview_block(b) for b in blocks[:8]]
+
+    table_blocks = [b for b in blocks if b.get("type") == "table"]
+    table_previews = [preview_block(b) for b in table_blocks[:3]]
+
+    return {
+        "json_path": str(json_path),
+        "root_type": type(data).__name__,
+        "num_pages": num_pages,
+        "num_blocks": len(blocks),
+        "type_counter": dict(type_counter),
+        "page_counter": dict(page_counter),
+        "previews": previews,
+        "table_previews": table_previews,
+    }
+
+
 def main() -> None:
-    json_files = sorted(RAW_DIR.rglob("*.json"))
-    json_files = [p for p in json_files if p.name != "_meta.json"]
+    json_files = find_primary_jsons(RAW_DIR)
 
     if not json_files:
-        raise SystemExit(f"No json found under {RAW_DIR}")
+        print(f"[WARN] no primary json found under: {RAW_DIR}")
+        return
 
+    print("=" * 100)
+    print("[TARGET JSON FILES]")
+    for p in json_files:
+        print(p)
+
+    total_files = 0
+    total_pages = 0
     total_blocks = 0
-    root_type_counter = Counter()
-    outer_type_counter = Counter()
-    bbox_mode_counter = Counter()
-    bbox_shape_counter = Counter()
-    per_file_type_counter: dict[str, Counter] = {}
-    sample_blocks_by_type: dict[str, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
+    global_type_counter = Counter()
 
-    print(f"[INFO] total json files found: {len(json_files)}")
+    for json_path in json_files:
+        print("\n" + "=" * 100)
+        print(f"[FILE] {json_path}")
 
-    for jf in json_files:
-        try:
-            data = json.loads(jf.read_text(encoding="utf-8"))
-        except Exception as e:
-            print(f"[WARN] failed to read {jf}: {e}")
-            continue
+        result = inspect_one_json(json_path)
 
-        root_type_counter[type(data).__name__] += 1
+        total_files += 1
+        total_pages += result["num_pages"]
+        total_blocks += result["num_blocks"]
+        global_type_counter.update(result["type_counter"])
 
-        blocks = unwrap_blocks(data)
-        bbox_mode = detect_bbox_mode(blocks)
-        bbox_mode_counter[bbox_mode] += 1
+        print(f"root_type   : {result['root_type']}")
+        print(f"pages       : {result['num_pages']}")
+        print(f"blocks      : {result['num_blocks']}")
+        print(f"type_count  : {result['type_counter']}")
+        print(f"page_count  : {result['page_counter']}")
 
-        file_counter = Counter()
+        print("[PREVIEW BLOCKS]")
+        for i, item in enumerate(result["previews"], start=1):
+            print(f"  ({i}) {json.dumps(item, ensure_ascii=False)}")
 
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
+        if result["table_previews"]:
+            print("[TABLE PREVIEWS]")
+            for i, item in enumerate(result["table_previews"], start=1):
+                print(f"  ({i}) {json.dumps(item, ensure_ascii=False)}")
 
-            total_blocks += 1
-
-            raw_type = block.get("type")
-            raw_type = raw_type.strip().lower() if isinstance(raw_type, str) else "<missing>"
-            outer_type_counter[raw_type] += 1
-            file_counter[raw_type] += 1
-
-            bbox = block.get("bbox")
-            if isinstance(bbox, list):
-                bbox_shape_counter[f"list_len_{len(bbox)}"] += 1
-            elif bbox is None:
-                bbox_shape_counter["missing"] += 1
-            else:
-                bbox_shape_counter[type(bbox).__name__] += 1
-
-            if len(sample_blocks_by_type[raw_type]) < 3:
-                sample_blocks_by_type[raw_type].append((str(jf), preview_block(block)))
-
-        per_file_type_counter[str(jf)] = file_counter
-
-    print("\n=== GLOBAL SUMMARY ===")
-    print(f"total_json_files = {len(json_files)}")
-    print(f"total_blocks     = {total_blocks}")
-
-    print("\n=== ROOT TYPE COUNTS ===")
-    for k, v in root_type_counter.most_common():
-        print(f"{k:15s}: {v}")
-
-    print("\n=== BBOX MODE COUNTS ===")
-    for k, v in bbox_mode_counter.most_common():
-        print(f"{k:15s}: {v}")
-
-    print("\n=== BBOX SHAPE COUNTS ===")
-    for k, v in bbox_shape_counter.most_common():
-        print(f"{k:15s}: {v}")
-
-    print("\n=== OUTER BLOCK TYPE COUNTS ===")
-    for k, v in outer_type_counter.most_common():
-        print(f"{k:15s}: {v}")
-
-    print("\n=== PER FILE TYPE COUNTS ===")
-    for path, counter in per_file_type_counter.items():
-        short_name = Path(path).name
-        total_in_file = sum(counter.values())
-        detail = ", ".join(f"{k}={v}" for k, v in counter.most_common())
-        print(f"{short_name:20s} total={total_in_file:3d} | {detail}")
-
-    print("\n=== SAMPLE BLOCKS BY TYPE ===")
-    for block_type, items in sample_blocks_by_type.items():
-        print(f"\n--- type = {block_type} ---")
-        for path, preview in items:
-            print(f"[FILE] {path}")
-            print(json.dumps(preview, ensure_ascii=False, indent=2))
-
-    print("\n=== DONE ===")
+    print("\n" + "=" * 100)
+    print("[SUMMARY]")
+    print(f"total_files   : {total_files}")
+    print(f"total_pages   : {total_pages}")
+    print(f"total_blocks  : {total_blocks}")
+    print(f"global_types  : {dict(global_type_counter)}")
 
 
 if __name__ == "__main__":

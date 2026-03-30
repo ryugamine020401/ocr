@@ -31,8 +31,13 @@ def main() -> None:
     print(f"[INFO] GT   : {GT_FILE}")
     print(f"[INFO] Pred : {PRED_FILE}")
 
+    with PRED_FILE.open("r", encoding="utf-8") as f:
+        preds = json.load(f)
+
+    print(f"[INFO] num_predictions: {len(preds)}")
+
     coco_gt = COCO(str(GT_FILE))
-    coco_dt = coco_gt.loadRes(str(PRED_FILE))
+    coco_dt = coco_gt.loadRes(preds)
 
     coco_eval = COCOeval(coco_gt, coco_dt, iouType="bbox")
 

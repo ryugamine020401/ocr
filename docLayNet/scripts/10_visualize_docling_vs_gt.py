@@ -9,12 +9,12 @@ from PIL import Image, ImageDraw
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parent
 
-GT_FILE = ROOT / "outputs" / "gt" / "gt_5class_sample20.json"
-PRED_FILE = ROOT / "outputs" / "pred" / "pred_docling_sample20.json"
+GT_FILE = ROOT / "outputs" / "gt" / "gt_5class_sample30.json"
+PRED_FILE = ROOT / "outputs" / "pred" / "pred_docling_sample30.json"
 IMAGES_DIR = ROOT / "outputs" / "images"
 VIS_DIR = ROOT / "outputs" / "vis_docling"
 
-MAX_IMAGES = 20
+MAX_IMAGES = 30
 
 CATEGORY_ID_TO_NAME = {
     0: "Picture",

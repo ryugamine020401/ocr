@@ -80,15 +80,20 @@ def pick_primary_json(tmp_dir: Path) -> Path:
     if not json_files:
         raise FileNotFoundError(f"No JSON output found under {tmp_dir}")
 
-    preferred_names = {
-        "result.json",
-        "middle.json",
-        "layout.json",
-        "content_list.json",
-    }
+    preferred_suffixes = [
+        "_middle.json",
+        "_content_list.json",
+        "_content_list_v2.json",
+        "_model.json",
+        ".json",
+    ]
 
-    preferred = [p for p in json_files if p.name.lower() in preferred_names]
-    return preferred[0] if preferred else json_files[0]
+    for suffix in preferred_suffixes:
+        matched = [p for p in json_files if p.name.lower().endswith(suffix)]
+        if matched:
+            return matched[0]
+
+    return json_files[0]
 
 
 def main() -> None:
