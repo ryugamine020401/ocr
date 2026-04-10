@@ -4,5 +4,6 @@ __pycache__/
 
 data/outputs/
 data/temp/
+data/
 
 .env
